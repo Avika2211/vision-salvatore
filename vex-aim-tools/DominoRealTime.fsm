@@ -1,0 +1,32 @@
+from aim_fsm import *
+
+from ultralytics import YOLO
+
+model_path = r"yolo_best_weights.pt"
+
+class DominoRealTime(StateMachineProgram):
+    def __init__(self):
+        super().__init__()
+        print('Loading YOLO weights')
+        self.model = YOLO(model_path)
+        self.result = []
+
+    class DetectDominoes(StateNode):
+        def start(self, event=None):
+            super().start(event)
+            results = self.parent.model(self.robot.camera_image, conf=0.5, verbose=False)
+            self.parent.result = results[0]
+            self.post_data(self.parent.result)
+
+    class DisplayResults(StateNode):
+        def start(self, event=None):
+            super().start(event)
+            result = event.data if isinstance(event, DataEvent) else self.parent.result
+            annotated_image = result.plot()
+            imshow('domino', annotated_image)
+
+    $setup{
+        begin: StateNode() =T(2)=> loop   # wait for viewers to pop up
+
+        loop: self.DetectDominoes() =D=> self.DisplayResults() =N=> loop
+    }d 

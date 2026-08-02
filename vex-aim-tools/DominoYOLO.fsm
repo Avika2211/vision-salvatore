@@ -1,0 +1,139 @@
+from aim_fsm import *
+
+from ultralytics import YOLO
+
+seg_model_path = r"yolo_best_weights.pt"
+cls_model_path = r"best.pt"
+
+
+class DominoYOLO(StateMachineProgram):
+
+    def __init__(self):
+        super().__init__()
+
+        print("Loading segmentation YOLO weights")
+        self.segmenter = YOLO(seg_model_path)
+
+        print("Loading classification YOLO weights")
+        self.classifier = YOLO(cls_model_path)
+
+        self.result = None
+
+
+    class DetectDominoes(StateNode):
+
+        def start(self, event=None):
+            super().start(event)
+
+            frame = self.robot.camera_image
+
+            # Run segmentation model
+            result = self.parent.segmenter(
+                frame,
+                conf=0.5,
+                verbose=False
+            )[0]
+
+
+            predictions = []
+
+
+            # Classify every detected domino
+            if result.boxes is not None:
+
+                for box in result.boxes.xyxy:
+
+                    x1, y1, x2, y2 = map(int, box)
+
+                    crop = frame[y1:y2, x1:x2]
+
+
+                    if crop.size == 0:
+                        continue
+
+
+                    cls_result = self.parent.classifier(
+                        crop,
+                        verbose=False
+                    )[0]
+
+
+                    class_id = cls_result.probs.top1
+                    confidence = float(
+                        cls_result.probs.top1conf
+                    )
+
+                    label = self.parent.classifier.names[class_id]
+
+
+                    predictions.append(
+                        {
+                            "bbox": (x1, y1, x2, y2),
+                            "label": label,
+                            "confidence": confidence
+                        }
+                    )
+
+
+            self.parent.result = (result, predictions)
+
+            self.post_data(self.parent.result)
+
+
+
+    class DisplayResults(StateNode):
+
+        def start(self, event=None):
+            super().start(event)
+
+            result, predictions = (
+                event.data
+                if isinstance(event, DataEvent)
+                else self.parent.result
+            )
+
+
+            annotated_image = result.plot()
+
+
+            import cv2
+
+
+            for p in predictions:
+
+                x1, y1, x2, y2 = p["bbox"]
+
+                text = (
+                    f'{p["label"]} '
+                    f'{p["confidence"]:.2f}'
+                )
+
+
+                cv2.putText(
+                    annotated_image,
+                    text,
+                    (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0,255,0),
+                    2
+                )
+
+
+            imshow(
+                "domino",
+                annotated_image
+            )
+
+
+    $setup{
+
+        begin: StateNode() =T(2)=> loop
+
+        loop: Print("Type 'tm' to recognize domino") =TM=> detect
+
+        detect: self.DetectDominoes() =D=> display
+
+        display: self.DisplayResults() =N=> loop
+
+    }

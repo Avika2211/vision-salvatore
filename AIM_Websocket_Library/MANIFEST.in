@@ -1,0 +1,2 @@
+# Exclude folders when making vex package
+prune example

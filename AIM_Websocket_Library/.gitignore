@@ -1,0 +1,12 @@
+# macOS Finder metadata
+.DS_Store
+
+# Compiled stuff
+__pycache__
+*/__pycache__
+
+# Python virtual environments
+venv/
+.venv/
+*/venv/
+*/.venv/

@@ -1,0 +1,6 @@
+from aim_fsm import *
+
+class e1(StateMachineProgram):
+  $setup{
+    Forward(50) =C=> Say("Hello there")
+  }

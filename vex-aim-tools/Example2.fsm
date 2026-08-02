@@ -1,0 +1,28 @@
+from aim_fsm import *
+
+class OrangeBarrelCheck(StateNode):
+    def start(self, event=None):
+        super().start(event)
+
+        for obj in robot.world_map.objects.values():
+            if isinstance(obj, OrangeBarrelObj) and obj.is_visible:
+                self.post_success()
+                return
+
+        self.post_failure()
+
+
+class Example2(StateMachineProgram):
+
+    $setup {
+        check: OrangeBarrelCheck()
+
+        check =S=> orange
+        check =F=> off
+
+        orange: Glow(vex.LightType.ALL_LEDS, 250, 20, 0)
+            =T(0.2)=> check
+
+        off: Glow(vex.LightType.ALL_LEDS, 0, 0, 0)
+            =T(0.2)=> check
+    }

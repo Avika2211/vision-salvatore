@@ -1,0 +1,12 @@
+numpy
+Pillow
+opencv-python
+pyqt6
+termcolor
+websocket_client
+flask
+flask_cors
+pyreadline3
+openai
+gTTS
+google-cloud-texttospeech
